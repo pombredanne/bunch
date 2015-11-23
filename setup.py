@@ -19,8 +19,7 @@ __version__ = re.sub(
 setup(
     name             = "munch",
     version          = __version__,
-    description      = "A dot-accessible dictionary (a la JavaScript objects)",
-    long_description = readme,
+    description      = "A dot-accessible dictionary (a la JavaScript objects).",
     url              = "http://github.com/Infinidat/munch",
 
     author           = "Rotem Yaari",
@@ -38,6 +37,7 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries',
         'Topic :: Utilities',

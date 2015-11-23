@@ -23,7 +23,7 @@
     converted via Munch.to/fromDict().
 """
 
-__version__ = '2.0.2'
+__version__ = '2.0.4'
 VERSION = tuple(map(int, __version__.split('.')))
 
 __all__ = ('Munch', 'munchify','unmunchify',)
@@ -55,12 +55,12 @@ class Munch(dict):
 
         >>> b.update({ 'ponies': 'are pretty!' }, hello=42)
         >>> print (repr(b))
-        Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
+        Munch({'ponies': 'are pretty!', 'foo': Munch({'lol': True}), 'hello': 42})
 
         As well as iteration...
 
-        >>> [ (k,b[k]) for k in b ]
-        [('ponies', 'are pretty!'), ('foo', Munch(lol=True)), ('hello', 42)]
+        >>> sorted([ (k,b[k]) for k in b ])
+        [('foo', Munch({'lol': True})), ('hello', 42), ('ponies', 'are pretty!')]
 
         And "splats".
 
@@ -133,8 +133,8 @@ class Munch(dict):
             propagate as an AttributeError instead.
 
             >>> b = Munch(foo='bar', this_is='useful when subclassing')
-            >>> b.values                            #doctest: +ELLIPSIS
-            <built-in method values of Munch object at 0x...>
+            >>> hasattr(b.values, '__call__')
+            True
             >>> b.values = 'uh oh'
             >>> b.values
             'uh oh'
@@ -160,10 +160,6 @@ class Munch(dict):
             propagate as an AttributeError instead.
 
             >>> b = Munch(lol=42)
-            >>> del b.values
-            Traceback (most recent call last):
-                ...
-            AttributeError: 'Munch' object attribute 'values' is read-only
             >>> del b.lol
             >>> b.lol
             Traceback (most recent call last):
@@ -185,8 +181,8 @@ class Munch(dict):
         """ Recursively converts a munch back into a dictionary.
 
             >>> b = Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
-            >>> b.toDict()
-            {'ponies': 'are pretty!', 'foo': {'lol': True}, 'hello': 42}
+            >>> sorted(b.toDict().items())
+            [('foo', {'lol': True}), ('hello', 42), ('ponies', 'are pretty!')]
 
             See unmunchify for more info.
         """
@@ -197,16 +193,20 @@ class Munch(dict):
 
             >>> b = Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
             >>> print (repr(b))
-            Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
+            Munch({'ponies': 'are pretty!', 'foo': Munch({'lol': True}), 'hello': 42})
             >>> eval(repr(b))
-            Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
+            Munch({'ponies': 'are pretty!', 'foo': Munch({'lol': True}), 'hello': 42})
+
+            >>> with_spaces = Munch({1: 2, 'a b': 9, 'c': Munch({'simple': 5})})
+            >>> print (repr(with_spaces))
+            Munch({'a b': 9, 1: 2, 'c': Munch({'simple': 5})})
+            >>> eval(repr(with_spaces))
+            Munch({'a b': 9, 1: 2, 'c': Munch({'simple': 5})})
 
             (*) Invertible so long as collection contents are each repr-invertible.
         """
-        keys = list(iterkeys(self))
-        keys.sort()
-        args = ', '.join(['%s=%r' % (key, self[key]) for key in keys])
-        return '%s(%s)' % (self.__class__.__name__, args)
+        return '%s(%s)' % (self.__class__.__name__, dict.__repr__(self))
+
 
 
     def __dir__(self):
@@ -265,17 +265,16 @@ def unmunchify(x):
     """ Recursively converts a Munch into a dictionary.
 
         >>> b = Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
-        >>> unmunchify(b)
-        {'ponies': 'are pretty!', 'foo': {'lol': True}, 'hello': 42}
+        >>> sorted(unmunchify(b).items())
+        [('foo', {'lol': True}), ('hello', 42), ('ponies', 'are pretty!')]
 
         unmunchify will handle intermediary dicts, lists and tuples (as well as
         their subclasses), but ymmv on custom datatypes.
 
         >>> b = Munch(foo=['bar', Munch(lol=True)], hello=42,
         ...         ponies=('are pretty!', Munch(lies='are trouble!')))
-        >>> unmunchify(b) #doctest: +NORMALIZE_WHITESPACE
-        {'ponies': ('are pretty!', {'lies': 'are trouble!'}),
-         'foo': ['bar', {'lol': True}], 'hello': 42}
+        >>> sorted(unmunchify(b).items()) #doctest: +NORMALIZE_WHITESPACE
+        [('foo', ['bar', {'lol': True}]), ('hello', 42), ('ponies', ('are pretty!', {'lies': 'are trouble!'}))]
 
         nb. As dicts are not hashable, they cannot be nested in sets/frozensets.
     """
@@ -299,10 +298,8 @@ try:
         """ Serializes this Munch to JSON. Accepts the same keyword options as `json.dumps()`.
 
             >>> b = Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
-            >>> json.dumps(b)
-            '{"ponies": "are pretty!", "foo": {"lol": true}, "hello": 42}'
-            >>> b.toJSON()
-            '{"ponies": "are pretty!", "foo": {"lol": true}, "hello": 42}'
+            >>> json.dumps(b) == b.toJSON()
+            True
         """
         return json.dumps(self, **options)
 
