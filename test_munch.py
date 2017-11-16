@@ -1,6 +1,6 @@
 import json
 import pytest
-from munch import Munch, munchify, unmunchify
+from munch import DefaultMunch, Munch, munchify, unmunchify
 
 
 def test_base():
@@ -80,6 +80,9 @@ def test_toDict():
     b = Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
     assert sorted(b.toDict().items()) == [('foo', {'lol': True}), ('hello', 42), ('ponies', 'are pretty!')]
 
+def test_dict_property():
+    b = Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
+    assert sorted(b.__dict__.items()) == [('foo', {'lol': True}), ('hello', 42), ('ponies', 'are pretty!')]
 
 def test_repr():
     b = Munch(foo=Munch(lol=True), hello=42, ponies='are pretty!')
@@ -111,7 +114,11 @@ def test_fromDict():
 def test_copy():
     m = Munch(urmom=Munch(sez=Munch(what='what')))
     c = m.copy()
+    assert c is not m
+    assert c.urmom is not m.urmom
+    assert c.urmom.sez is not m.urmom.sez
     assert c.urmom.sez.what == 'what'
+    assert c == m
 
 
 def test_munchify():
@@ -171,3 +178,76 @@ def test_reserved_attributes(attrname):
         assert attr == {}
     else:
         assert callable(attr)
+
+
+def test_getattr_default():
+    b = DefaultMunch(bar='baz', lol={})
+    assert b.foo is None
+    assert b['foo'] is None
+
+    assert b.bar == 'baz'
+    assert getattr(b, 'bar') == 'baz'
+    assert b['bar'] == 'baz'
+    assert b.lol is b['lol']
+    assert b.lol is getattr(b, 'lol')
+
+    undefined = object()
+    b = DefaultMunch(undefined, bar='baz', lol={})
+    assert b.foo is undefined
+    assert b['foo'] is undefined
+
+
+def test_setattr_default():
+    b = DefaultMunch(foo='bar', this_is='useful when subclassing')
+    assert hasattr(b.values, '__call__')
+
+    b.values = 'uh oh'
+    assert b.values == 'uh oh'
+    assert b['values'] is None
+
+    assert b.__default__ is None
+    assert '__default__' not in b
+
+
+def test_delattr_default():
+    b = DefaultMunch(lol=42)
+    del b.lol
+
+    assert b.lol is None
+    assert b['lol'] is None
+
+
+def test_fromDict_default():
+    undefined = object()
+    b = DefaultMunch.fromDict({'urmom': {'sez': {'what': 'what'}}}, undefined)
+    assert b.urmom.sez.what == 'what'
+    assert b.urmom.sez.foo is undefined
+
+
+def test_copy_default():
+    undefined = object()
+    m = DefaultMunch.fromDict({'urmom': {'sez': {'what': 'what'}}}, undefined)
+    c = m.copy()
+    assert c is not m
+    assert c.urmom is not m.urmom
+    assert c.urmom.sez is not m.urmom.sez
+    assert c.urmom.sez.what == 'what'
+    assert c == m
+    assert c.urmom.sez.foo is undefined
+    assert c.urmom.sez.__undefined__ is undefined
+
+
+def test_munchify_default():
+    undefined = object()
+    b = munchify(
+        {'urmom': {'sez': {'what': 'what'}}},
+        lambda d: DefaultMunch(undefined, d))
+    assert b.urmom.sez.what == 'what'
+    assert b.urdad is undefined
+    assert b.urmom.sez.ni is undefined
+
+
+def test_repr_default():
+    b = DefaultMunch(foo=DefaultMunch(lol=True), ponies='are pretty!')
+    assert repr(b).startswith("DefaultMunch(None, {'")
+    assert "'ponies': 'are pretty!'" in repr(b)
